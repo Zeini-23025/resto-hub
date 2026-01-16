@@ -1,0 +1,43 @@
+# ====================
+
+# General
+
+# ====================
+
+.DS_Store
+node_modules/
+dist/
+*.log
+.env
+.vscode/
+.idea/
+
+# ====================
+
+# Backend (Spring Boot)
+
+# ====================
+
+**/target/
+*.class
+*.jar
+*.war
+*.iml
+*.h2.db
+
+# Maven Wrapper
+
+**/.mvn/wrapper/maven-wrapper.jar
+
+# ====================
+
+# Frontend (React + Vite)
+
+# ====================
+
+**/frontend/node_modules/
+**/frontend/dist/
+**/frontend/.env.local
+**/frontend/.env.development.local
+**/frontend/.env.test.local
+**/frontend/.env.production.local
