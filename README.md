@@ -1,5 +1,3 @@
-# README.md
-
 # Resto-Hub
 
 Système de Gestion de Restaurant (Restaurant Management System)
