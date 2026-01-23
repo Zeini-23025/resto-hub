@@ -1,0 +1,30 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:postgresql://localhost:5433/order_db
+    username: admin
+    password: admin123
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+feign:
+  client:
+    config:
+      menu-service:
+        url: http://localhost:8081
+      kitchen-service:
+        url: http://localhost:8083
+
+logging:
+  level:
+    com.restaurant.order: DEBUG
