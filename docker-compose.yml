@@ -1,25 +1,141 @@
-version: "3.9"
+version: '3.8'
 
 services:
-  backend:
-    build:
-      context: ./backend
-    container_name: resto-hub-backend
-    ports:
-      - "8080:8080"
+  # --- Databases & Message Broker ---
+  postgres-menu:
+    image: postgres:15
+    container_name: postgres-menu
     environment:
-      SPRING_PROFILES_ACTIVE: docker
+      POSTGRES_DB: menu_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5432:5432"
+    networks:
+      - resto-hub-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d menu_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-order:
+    image: postgres:15
+    container_name: postgres-order
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5433:5432"
+    networks:
+      - resto-hub-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-kitchen:
+    image: postgres:15
+    container_name: postgres-kitchen
+    environment:
+      POSTGRES_DB: kitchen_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+    ports:
+      - "5434:5432"
+    networks:
+      - resto-hub-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d kitchen_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    networks:
+      - resto-hub-network
+    healthcheck:
+        test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+
+  # --- Microservices ---
+  menu-service:
+    build: ./menu-service
+    container_name: menu-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-menu:5432/menu_db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin123
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres-menu:
+        condition: service_healthy
     networks:
       - resto-hub-network
 
-  frontend:
-    build:
-      context: ./frontend
-    container_name: resto-hub-frontend
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-order:5432/order_db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin123
+      FEIGN_CLIENT_CONFIG_MENU_SERVICE_URL: http://menu-service:8081
+      FEIGN_CLIENT_CONFIG_KITCHEN_SERVICE_URL: http://kitchen-service:8083
     ports:
-      - "5173:80"
+      - "8082:8082"
     depends_on:
-      - backend
+      postgres-order:
+        condition: service_healthy
+      menu-service:
+        condition: service_started
+    networks:
+      - resto-hub-network
+
+  kitchen-service:
+    build: ./kitchen-service
+    container_name: kitchen-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-kitchen:5432/kitchen_db
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: admin123
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres-kitchen:
+        condition: service_healthy
+    networks:
+      - resto-hub-network
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_CLOUD_GATEWAY_ROUTES_0_URI: http://menu-service:8081
+      SPRING_CLOUD_GATEWAY_ROUTES_1_URI: http://order-service:8082
+      SPRING_CLOUD_GATEWAY_ROUTES_2_URI: http://kitchen-service:8083
+    depends_on:
+      menu-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      kitchen-service:
+        condition: service_started
     networks:
       - resto-hub-network
 
